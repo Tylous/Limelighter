@@ -62,12 +62,12 @@ Usage of ./LimeLighter:
 
 To sign a file you can use the command option `Domain` and `Password to generate a fake code signing certificate.
 
-![Signing](Screenshots/Signing.jpg)
+![Signing](Screenshots/Signing.png)
 
 to sign a file with a valid code signing certificate use the `Real` and `Password` to sign a file with a valid code signing certificate.
 
 
 To verify a signed file use the `verify` command.
 
-![Verifying](Screenshots/Verifing.jpg)
-![WindowsVerifying](Screenshots/WindowsVerifying.jpg)
+![Verifying](Screenshots/Verifing.png)
+![WindowsVerifying](Screenshots/WindowsVerifying.png)
