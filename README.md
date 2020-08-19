@@ -1,9 +1,11 @@
 # Limelighter
 
-A tool that creates a spoof code signing certificates and sign binaries and DLL files to help evade EDR products and avoid MSS and SoCs. LimeLighter can also use valid code signing certificates to sign files.
+A tool that creates a spoof code signing certificates and sign binaries and DLL files to help evade EDR products and avoid MSS and SoCs. LimeLighter can also use valid code signing certificates to sign files on linux or OSX. This eliminates the need for a Windows VM and SDK library to sign valid code, allowing for easy on the fly code signing.
+
+Limelighter can use a fully qualified domain name such as `www.acme.com` or simply `acme corp llc`.
 
 ## Contributing
-LimeLighter was developed in golang.
+Limelighter was developed in golang.
 
 Make sure that the following are installed on your OS:
 
