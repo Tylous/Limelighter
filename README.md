@@ -50,7 +50,7 @@ Usage of ./LimeLighter:
   -Password string
         Password for real or fake certificate
   -Real string
-        Path to a valid .pfx certificate file
+        Path to a valid .pfx or .p12 certificate file
   -Verify string
         Verifies a file's code sign certificate
   -debug
