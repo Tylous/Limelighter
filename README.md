@@ -1,6 +1,6 @@
 # Limelighter
 
-A tool that creates a spoof code signing certificates and sign binaries and DLL files to help evade EDR products and avoid MSS and SoCs. LimeLighter can also use valid code signing certificates to sign files on linux or OSX. This eliminates the need for a Windows VM and SDK library to sign valid code, allowing for easy on the fly code signing.
+A tool that creates a spoof code signing certificates and sign binaries and DLL files to help evade EDR products and avoid MSS and SoCs. LimeLighter can also use valid code signing certificates to sign files on Linux or OSX. This eliminates the need for a Windows VM and SDK library to sign valid code, allowing for easy on the fly code signing.
 
 Limelighter can use a fully qualified domain name such as `acme.com` or simply `acme corp llc` (please note if your using spaces you will need to encapsulate them with "".
 
