@@ -44,7 +44,7 @@ func GeneratePFK(domain string, password string, pfx string) {
 	cmd = exec.Command("openssl", "pkcs12", "-export", "-name", ""+domain+"", "-passin", "pass:"+password+"", "-passout", "pass:"+password+"", "-out", pfx, "-inkey", ""+domain+".key", "-in", ""+domain+".crt")
 	err = cmd.Run()
 	if err != nil {
-		log.Fatalf("cmd.Run() failed with %s\n", err)''
+		log.Fatalf("cmd.Run() failed with %s\n", err)
 	}
 	printDebug("[!] Created - %s\n", domain+".pfx")
 }
