@@ -1,13 +1,13 @@
-# Limelighter
 
-A tool that creates a spoof code signing certificates and sign binaries and DLL files to help evade EDR products and avoid MSS and SoCs. LimeLighter can also use valid code signing certificates to sign files on Linux or OSX. This eliminates the need for a Windows VM and SDK library to sign valid code, allowing for easy on the fly code signing.
+# LimeLighter
 
-Limelighter can use a fully qualified domain name such as `acme.com` or simply `acme corp llc` (please note if your using spaces you will need to encapsulate them with "".
+A tool which creates a spoof code signing certificates and sign binaries and DLL files to help evade EDR products and avoid MSS and sock scruitney. LimeLighter can also use valid code signing certificates to sign files. Limelighter can use a fully qualified domain name such as `acme.com`.
+
 
 ## Contributing
-Limelighter was developed in golang.
+LimeLighter was developed in golang.
 
-Make sure that the following are installed on your OS:
+Make sure that the following are installed on your OS 
 
 ```
 openssl
@@ -24,6 +24,7 @@ Then build it
 ```
 go build LimeLighter.go
 ```
+
 
 
 
@@ -50,9 +51,9 @@ Usage of ./LimeLighter:
   -O string
         Signed file name
   -Password string
-        Password for real or fake certificate
+        Password for real  certificate
   -Real string
-        Path to a valid .pfx or .p12 certificate file
+        Path to a valid .pfx certificate file
   -Verify string
         Verifies a file's code sign certificate
   -debug
@@ -60,14 +61,14 @@ Usage of ./LimeLighter:
 
 ```
 
-To sign a file you can use the command option `Domain` and `Password` to generate a fake code signing certificate. The password can be anything you want.
+To sign a file you can use the command option `Domain` to generate a fake code signing certificate.
 
-![Signing](Screenshots/Signing.png)
+![Signing](Screenshots/Signing.jpg)
 
-To sign a file with a valid code signing certificate use the `Real` and `Password` to sign a file with a valid code signing certificate.
+to sign a file with a valid code signing certificate use the `Real` and `Password` to sign a file with a valid code signing certificate.
 
 
 To verify a signed file use the `verify` command.
 
-![Verifying](Screenshots/Verifing.png)
-![WindowsVerifying](Screenshots/WindowsVerifying.png)
+![Verifying](Screenshots/Verifing.jpg)
+![WindowsVerifying](Screenshots/WindowsVerifying.jpg)

