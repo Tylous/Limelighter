@@ -21,7 +21,7 @@ import (
 	"github.com/fatih/color"
 )
 
-type FlagOptions struct {
+type flagOptions struct {
 	outFile   string
 	inputFile string
 	domain    string
@@ -45,15 +45,15 @@ func printDebug(format string, v ...interface{}) {
 
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
-func VarNumberLength(min, max int) string {
+func varNumberLength(min, max int) string {
 	var r string
 	crand.Seed(time.Now().UnixNano())
 	num := crand.Intn(max-min) + min
 	n := num
-	r = RandStringBytes(n)
+	r = randStringBytes(n)
 	return r
 }
-func RandStringBytes(n int) string {
+func randStringBytes(n int) string {
 	b := make([]byte, n)
 	for i := range b {
 		b[i] = letters[crand.Intn(len(letters))]
@@ -62,13 +62,13 @@ func RandStringBytes(n int) string {
 	return string(b)
 }
 
-func GenerateCert(domain string, inputFile string) {
+func generateCert(domain string, inputFile string) {
 	var err error
 	rootKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		panic(err)
 	}
-	certs, err := GetCertificatesPEM(domain + ":443")
+	certs, err := getCertificatesPEM(domain + ":443")
 	if err != nil {
 		os.Chdir("..")
 		foldername := strings.Split(inputFile, ".")
@@ -80,7 +80,7 @@ func GenerateCert(domain string, inputFile string) {
 
 	keyToFile(domain+".key", rootKey)
 
-	SubjectTemplate := x509.Certificate{
+	subjectTemplate := x509.Certificate{
 		SerialNumber: cert.SerialNumber,
 		Subject: pkix.Name{
 			CommonName: cert.Subject.CommonName,
@@ -88,11 +88,11 @@ func GenerateCert(domain string, inputFile string) {
 		NotBefore:             cert.NotBefore,
 		NotAfter:              cert.NotAfter,
 		BasicConstraintsValid: true,
-		IsCA:                  true,
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		IsCA:        true,
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}
-	IssuerTemplate := x509.Certificate{
+	issuerTemplate := x509.Certificate{
 		SerialNumber: cert.SerialNumber,
 		Subject: pkix.Name{
 			CommonName: cert.Issuer.CommonName,
@@ -100,7 +100,7 @@ func GenerateCert(domain string, inputFile string) {
 		NotBefore: cert.NotBefore,
 		NotAfter:  cert.NotAfter,
 	}
-	derBytes, err := x509.CreateCertificate(rand.Reader, &SubjectTemplate, &IssuerTemplate, &rootKey.PublicKey, rootKey)
+	derBytes, err := x509.CreateCertificate(rand.Reader, &subjectTemplate, &issuerTemplate, &rootKey.PublicKey, rootKey)
 	if err != nil {
 		panic(err)
 	}
@@ -137,7 +137,7 @@ func certToFile(filename string, derBytes []byte) {
 	}
 }
 
-func GetCertificatesPEM(address string) (string, error) {
+func getCertificatesPEM(address string) (string, error) {
 	conn, err := tls.Dial("tcp", address, &tls.Config{
 		InsecureSkipVerify: true,
 	})
@@ -158,7 +158,7 @@ func GetCertificatesPEM(address string) (string, error) {
 	return b.String(), nil
 }
 
-func GeneratePFK(password string, domain string) {
+func generatePFK(password string, domain string) {
 	cmd := exec.Command("openssl", "pkcs12", "-export", "-out", domain+".pfx", "-inkey", domain+".key", "-in", domain+".pem", "-passin", "pass:"+password+"", "-passout", "pass:"+password+"")
 	err := cmd.Run()
 	if err != nil {
@@ -166,7 +166,7 @@ func GeneratePFK(password string, domain string) {
 	}
 }
 
-func SignExecutable(password string, pfx string, filein string, fileout string) {
+func signExecutable(password string, pfx string, filein string, fileout string) {
 	cmd := exec.Command("osslsigncode", "sign", "-pkcs12", pfx, "-in", ""+filein+"", "-out", ""+fileout+"", "-pass", ""+password+"")
 	err := cmd.Run()
 	if err != nil {
@@ -174,7 +174,7 @@ func SignExecutable(password string, pfx string, filein string, fileout string) 
 	}
 }
 
-func Check(check string) {
+func check(check string) {
 
 	cmd := exec.Command("osslsigncode", "verify", ""+check+"")
 	cmd.Stdout = os.Stdout
@@ -185,7 +185,7 @@ func Check(check string) {
 	}
 }
 
-func options() *FlagOptions {
+func options() *flagOptions {
 	outFile := flag.String("O", "", "Signed file name")
 	inputFile := flag.String("I", "", "Unsiged file name to be signed")
 	domain := flag.String("Domain", "", "Domain you want to create a fake code sign for")
@@ -196,7 +196,7 @@ func options() *FlagOptions {
 	flag.Parse()
 	debugging = *debug
 	debugWriter = os.Stdout
-	return &FlagOptions{outFile: *outFile, inputFile: *inputFile, domain: *domain, password: *password, real: *real, verify: *verify}
+	return &flagOptions{outFile: *outFile, inputFile: *inputFile, domain: *domain, password: *password, real: *real, verify: *verify}
 }
 
 func main() {
@@ -228,21 +228,21 @@ func main() {
 
 	if opt.verify != "" {
 		fmt.Println("[*] Checking code signed on file: " + opt.verify)
-		Check(opt.verify)
+		check(opt.verify)
 		os.Exit(3)
 	}
 
 	if opt.real != "" {
 		fmt.Println("[*] Signing " + opt.inputFile + " with a valid cert " + opt.real)
-		SignExecutable(opt.password, opt.real, opt.inputFile, opt.outFile)
+		signExecutable(opt.password, opt.real, opt.inputFile, opt.outFile)
 
 	} else {
-		password := VarNumberLength(8, 12)
+		password := varNumberLength(8, 12)
 		pfx := opt.domain + ".pfx"
 		fmt.Println("[*] Signing " + opt.inputFile + " with a fake cert")
-		GenerateCert(opt.domain, opt.inputFile)
-		GeneratePFK(password, opt.domain)
-		SignExecutable(password, pfx, opt.inputFile, opt.outFile)
+		generateCert(opt.domain, opt.inputFile)
+		generatePFK(password, opt.domain)
+		signExecutable(password, pfx, opt.inputFile, opt.outFile)
 
 	}
 	fmt.Println("[*] Cleaning up....")
