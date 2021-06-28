@@ -22,7 +22,7 @@ go get github.com/fatih/color
 Then build it
 
 ```
-go build LimeLighter.go
+go build Limelighter.go
 ```
 
 
