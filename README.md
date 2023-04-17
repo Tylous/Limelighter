@@ -16,6 +16,9 @@ osslsigncode
 
 The first step as always is to clone the repo. Before you compile LimeLighter you'll need to install the dependencies. To install them, run following commands:
 ```
+git clone https://github.com/Tylous/Limelighter
+cd LimeLighter
+go mod init github.com/Tylous/Limelighter
 go get github.com/fatih/color
 ```
 
